@@ -2,6 +2,6 @@ project(NoobHttpParser)
 
 set(CMAKE_CXX_STANDARD 11)
 
-set(SRC_FILES httpParser.cpp httpParser.h)
+set(SRC_FILES httpParser.cpp main.cpp)
 
 add_executable(parser ${SRC_FILES})

@@ -14,29 +14,11 @@ enum PARSED_STATE{
     S_FAILURE,
 };
 
-/**
- * 使用时，若想重新解析新的字符串，则需要调用clear()，清除状态。
- * 如果不清楚，那么对象不会解析新的字符串，会一直持有上一次解析的结果。
- * **/
-class ParseCRLF{
-private:
-    enum CRLF_State{
-        CR,
-        LF,
-        SUCCESS,
-        FAILURE
-    };
-    CRLF_State state = CR;
-public:
-    int operator()(const char buf[], int sz);
-    void clear();
-};
-
-
+typedef std::pair<std::string, std::string> Header;
 
 class ParseHttpVersion{
 private:
-    enum VERSION_STATE{
+    enum {
         START,
         CHAR_H,
         CHAR_T1,
@@ -47,38 +29,35 @@ private:
         DOT,
         DIGIT2,
         FAILURE
-    };
-    VERSION_STATE state = START;
+    } state = START;
 public:
     std::string version;
-    int operator()(const char buf[], int sz);
+    PARSED_STATE operator()(const char buf[], int sz, int &used);
     void clear();
 };
 
 
-
 class RequestLineParser{
 private:
-    enum REQ_LINE_STATE{
-        START,
-        METHOD, // mean method has been parsed
+    enum {
+        METHOD,
         SP1,
         URL,
         SP2,
         VERSION,
-        CRLF,
-        FAILURE
-    };
-    REQ_LINE_STATE state = START; //TODO: 复习类成员的初始化
+        CR,
+        LF,
+        GOOD,
+        BAD
+    } state = METHOD;
     ParseHttpVersion parseHttpVersion;
-    ParseCRLF parseCRLF;
 
 public:
     typedef std::string string;
     string method;
     string url;
     string version;
-    int operator()(char buf[], int sz);
+    PARSED_STATE operator()(char buf[], int sz, int &used);
     void clear();
 };
 
@@ -101,7 +80,6 @@ private:
 
     std::string key;
     std::string value;
-    typedef std::pair<std::string, std::string> Header;
 
 public:
     std::vector<Header> headers;
@@ -110,7 +88,7 @@ public:
 };
 
 
-class IdentityBodyParser{ // 需要cL需要记录已经弄了多少
+class IdentityBodyParser{
 private:
     int parsedLength = 0;
     int contentLength = -1;
@@ -129,35 +107,38 @@ private:
         CHUNK_SIZE,
         EXTENSION,
         CRLF1,
-        DATA_START,
-        TRAILER,
         DATA,
-        CRLF2,
+        TRAILER,
+        CR2,
+        LF2,
         GOOD,
         BAD
-    } state;
+    } state = START;
 
+    std::string chunkSize;
+    IdentityBodyParser chunkParser;
+    RequestHeadersParser trailerParser;
 public:
     std::vector<char> body;
+    std::vector<Header> headers;
     PARSED_STATE operator()(char buf[], int sz, int &used);
     void clear();
 };
 
 
-/**
- * 需要支持：
- * 1. Handles persistent streams
- * 2. Decodes chunked encoding
- * **/
 class HttpRequestParser{
+public:
+    void *userData = nullptr;
+    int (*callback)(void*, std::string&, std::string&, std::string&, std::vector<Header>&, std::vector<char>&) = nullptr;
+    int operator()(char buf[], int sz);
+    void reset();
 private:
     enum {
         LINE,
         HEADERS,
         BODY,
-        GOOD,
         BAD
-    } state;
+    } state = LINE;
 
     RequestLineParser requestLineParser;
     RequestHeadersParser requestHeadersParser;
@@ -173,20 +154,12 @@ private:
     BODY_TYPE bodyType = NO_BODY;
     int contentLength = -1;
     bool prepareContentLengthAndBodyType();
-
-public:
-    typedef std::string string;
-    typedef std::pair<string, string> Header;
-
-    string requestMethod;
-    string requestUrl;
-    string httpVersion;
+    void prepareNextRequest();
+    std::string requestMethod;
+    std::string requestUrl;
+    std::string httpVersion;
     std::vector<Header> requestHeaders;
     std::vector<char> messageBody; // 是transfer uncode之后的message body
-
-    // 解析的时候需要边解析边检查header，然后采取相应的检测body结尾的方法。
-    PARSED_STATE operator()(char buf[], int sz, int &used);
-    void clear();
 };
 
 #endif //NOOBHTTPPARSER_HTTPPARSER_H

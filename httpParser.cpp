@@ -56,8 +56,12 @@ bool isUrlChar(char c){
     return false;
 }
 
+inline bool isHex(char c){
+    return isdigit(c) || (c >= 'A' && c<= 'F') || (c >= 'a' && c<= 'f');
+}
 
-int ParseHttpVersion::operator()(const char buf[], int sz){
+
+PARSED_STATE ParseHttpVersion::operator()(const char buf[], int sz, int &used){
     int i=0;
     for(; i<sz && state != DIGIT2 && state != FAILURE; i++){
         char c = buf[i];
@@ -92,14 +96,14 @@ int ParseHttpVersion::operator()(const char buf[], int sz){
         }
     }
 
+    used = i;
     if(state == DIGIT2){
-        return i;
+        return S_SUCCESS;
+    }else if(state == FAILURE){
+        return S_FAILURE;
+    }else{
+        return S_PARSING;
     }
-    if(state == FAILURE){
-        return -1;
-    }
-
-    return 0; // 表示未完成
 }
 
 
@@ -109,114 +113,84 @@ void ParseHttpVersion::clear(){
 }
 
 
-int ParseCRLF::operator()(const char buf[], int sz){
-    for(int i=0; i<sz && state != SUCCESS && state != FAILURE; i++){
-        char c = buf[i];
-        switch (state){
-            case CR:
-                state = (c == '\r' ? LF : FAILURE);
-                break;
-            case LF:
-                state = (c == '\n' ? SUCCESS : FAILURE);
-            default:
-                break;
-        }
-    }
-
-    if(state == SUCCESS) {
-        return 2;
-    }else if(state == FAILURE) {
-        return -1;
-    }else{
-        return 0;
-    }
-}
-
-
-void ParseCRLF::clear(){
-    state = CR;
-}
-
-
 // 应该按chunk parse而不是按char
-int RequestLineParser::operator()(char buf[], int sz){ // -1 失败，0未完，>0是消耗的字符数目
+PARSED_STATE RequestLineParser::operator()(char buf[], int sz, int &used){ // -1 失败，0未完，>0是消耗的字符数目
     int res = 0;
-    for(int i=0; i<sz; i++){
+    int i = 0;
+    PARSED_STATE substate;
+    for(; i<sz && state!=GOOD && state!=BAD; i++){
         char c = buf[i];
         switch (state) {
-            case START:
-                if (isTockenChar(c)) {
-                    state = METHOD;
-                    method.push_back(c);
-                }else
-                    return -1;
-                break;
             case METHOD:
-                if (isSP(c))
+                if (isTockenChar(c)) {
                     state = SP1;
-                else if (isTockenChar(c)) {
-                    state = METHOD;
                     method.push_back(c);
                 }else
-                    return -1;
+                    state = BAD;
                 break;
             case SP1:
-                if (isUrlChar(c)) {
+                if (isSP(c))
                     state = URL;
-                    url.push_back(c);
+                else if (isTockenChar(c)) {
+                    state = SP1;
+                    method.push_back(c);
                 }else
-                    return -1;
+                    state = BAD;
                 break;
             case URL:
                 if (isUrlChar(c)) {
-                    state = URL;
-                    url.push_back(c);
-                }else if (isSP(c))
                     state = SP2;
-                else
-                    return -1;
+                    url.push_back(c);
+                }else
+                    state = BAD;
                 break;
             case SP2:
-                res = parseHttpVersion(buf+i, sz-i);
-                if (res == 0) { // not finished
+                if (isUrlChar(c)) {
                     state = SP2;
-                    i = sz - 1;
-                } else if (res > 0) {  // success，res表示version包含的字符数目
+                    url.push_back(c);
+                }else if (isSP(c))
                     state = VERSION;
-                    version = parseHttpVersion.version;
-                    parseHttpVersion.clear();
-                    i = i + res - 1;
-                }else{ // failure
-                    parseHttpVersion.clear();
-                    return -1;
-                }
+                else
+                    state = BAD;
                 break;
             case VERSION:
-                res = parseCRLF(buf+i, sz-i);
-                if(res == 0){
+                substate = parseHttpVersion(buf+i, sz-i, res);
+                i = i + res - 1;
+                if (substate == S_PARSING) {
                     state = VERSION;
-                    i = sz - 1;
-                }else if(res > 0){
-                    state = CRLF;
-                    parseCRLF.clear();
-                    i = i + res - 1; // 当前解析完的字符的索引
-                    return i+1; // 返回解析的字符数目
+                } else if (substate == S_SUCCESS) {
+                    state = CR;
+                    version = parseHttpVersion.version;
+                    parseHttpVersion.clear();
                 }else{
-                    parseCRLF.clear();
-                    return -1;
+                    parseHttpVersion.clear();
+                    state = BAD;
                 }
+                break;
+            case CR:
+                state = (isCR(c) ? LF : BAD);
+                break;
+            case LF:
+                state = (isLF(c) ? GOOD : BAD);
                 break;
             default:
                 break;
         }
     }
 
-    return 0; // 表示not finished
+    used = i;
+    if(state == GOOD){
+        return S_SUCCESS;
+    }else if(state == BAD){
+        return S_FAILURE;
+    }else{
+        return S_PARSING;
+    }
 }
 
 
 void RequestLineParser::clear(){
-    state = START;
+    state = METHOD;
     method.clear();
     url.clear();
     version.clear();
@@ -232,7 +206,7 @@ void RequestLineParser::clear(){
  * **/
 PARSED_STATE RequestHeadersParser::operator()(const char *buf, int sz, int &used) {
     int i = 0;
-    bool tag = false;
+    bool tag = false; // 表示遇到lws时，是否添加SP进value
     for(i=0; i<sz && state!=GOOD && state!=BAD; i++){
         char c = buf[i];
         switch (state){
@@ -240,6 +214,8 @@ PARSED_STATE RequestHeadersParser::operator()(const char *buf, int sz, int &used
                 if(isTockenChar(c)){
                     state = COLON;
                     key.push_back(c);
+                }else if(isCR(c)){
+                    state = LF2;
                 }else{
                     state = BAD;
                 }
@@ -249,6 +225,7 @@ PARSED_STATE RequestHeadersParser::operator()(const char *buf, int sz, int &used
                     state = COLON;
                     key.push_back(c);
                 }else if(c == ':'){
+                    tag = false;
                     state = CR1;
                 }else{
                     state = BAD;
@@ -318,38 +295,38 @@ void RequestHeadersParser::clear() {
 }
 
 
-PARSED_STATE HttpRequestParser::operator()(char *buf, int sz, int &used) {
+int HttpRequestParser::operator()(char *buf, int sz) {
     int i = 0;
-    for(; i< sz && state!=GOOD && state!=BAD; i++){
+    for(; i< sz && state!=BAD; i++){
         int ret = 0;
         PARSED_STATE substate;
         switch (state) {
             case LINE:
-                ret = requestLineParser(buf + i, sz - i);
-                if (ret == 0) { // 未完
-                    i = sz - 1;
-                } else if (ret > 0) { // 成功
+                substate = requestLineParser(buf + i, sz - i, ret);
+                i = i + ret - 1;
+                if (substate == S_PARSING) {
+                    state = LINE;
+                } else if (substate == S_SUCCESS) {
                     state = HEADERS;
-                    i = i + ret - 1;
                     requestMethod = requestLineParser.method;
                     requestUrl = requestLineParser.url;
                     httpVersion = requestLineParser.version;
-                } else { // 失败
+                } else {
                     state = BAD;
                 }
                 break;
             case HEADERS:
                 substate = requestHeadersParser(buf + i, sz - i, ret);
+                i = i + ret - 1;
                 if(substate == S_PARSING){
-                    i = sz - 1;
+                    state = HEADERS;
                 }else if(substate == S_SUCCESS){
-                    i = i + ret - 1;
                     requestHeaders = std::move(requestHeadersParser.headers);
                     requestHeadersParser.clear();
 
                     if(prepareContentLengthAndBodyType()){
                         if(bodyType == NO_BODY){
-                            state = GOOD;
+                            state = LINE;
                         }else if(bodyType == IDENTITY){
                             state = BODY;
                             identityBodyParser.setContentLength(contentLength);
@@ -367,14 +344,18 @@ PARSED_STATE HttpRequestParser::operator()(char *buf, int sz, int &used) {
                 if(bodyType == IDENTITY){
                     int tmp;
                     PARSED_STATE s = identityBodyParser(buf+i, sz-i, tmp);
+                    i = i + tmp - 1;
                     if(s == S_PARSING){
                         state = BODY;
-                        i = sz- 1;
                     }else if(s == S_SUCCESS){
-                        state = GOOD;
-                        i = i + tmp - 1;
+                        state = LINE;
                         messageBody = std::move(identityBodyParser.body);
                         identityBodyParser.clear();
+                        if(callback != nullptr){
+                            if(callback(userData, requestMethod, requestUrl, httpVersion, requestHeaders, messageBody) == 0)
+                                return i+1;
+                        }
+                        prepareNextRequest();
                     }else{
                         state = BAD;
                     }
@@ -383,14 +364,18 @@ PARSED_STATE HttpRequestParser::operator()(char *buf, int sz, int &used) {
                 if(bodyType == CHUNKED){
                     int tmp;
                     PARSED_STATE s = chunkedBodyParser(buf+i, sz-i, tmp);
+                    i = i + tmp - 1;
                     if(s == S_PARSING){
                         state = BODY;
-                        i = sz- 1;
                     }else if(s == S_SUCCESS){
-                        state = GOOD;
-                        i = i + tmp - 1;
+                        state = LINE;
                         messageBody = std::move(chunkedBodyParser.body);
                         chunkedBodyParser.clear();
+                        if(callback != nullptr){
+                            if(callback(userData, requestMethod, requestUrl, httpVersion, requestHeaders, messageBody) == 0)
+                                return i+1;
+                        }
+                        prepareNextRequest();
                     }else{
                         state = BAD;
                     }
@@ -400,27 +385,30 @@ PARSED_STATE HttpRequestParser::operator()(char *buf, int sz, int &used) {
                 break;
         }
     }
-
-    used = i;
-    if(state == GOOD){
-        return S_SUCCESS;
-    }else if(state == BAD){
-        return S_FAILURE;
-    }else{
-        return S_PARSING;
-    }
+    return state == BAD ? i-1 : i;
 }
 
 
-void HttpRequestParser::clear() {
+void HttpRequestParser::reset() {
     state = LINE;
+    userData = nullptr;
+    callback = nullptr;
     bodyType = NO_BODY;
+    prepareNextRequest();
+}
+
+
+void HttpRequestParser::prepareNextRequest() {
     contentLength = -1;
     requestMethod.clear();
     requestUrl.clear();
     httpVersion.clear();
     requestHeaders.clear();
     messageBody.clear();
+    requestLineParser.clear();
+    requestHeadersParser.clear();
+    identityBodyParser.clear();
+    chunkedBodyParser.clear();
 }
 
 
@@ -428,12 +416,12 @@ bool HttpRequestParser::prepareContentLengthAndBodyType() { // TODO 优化逻辑
     bodyType = NO_BODY;
     contentLength = -1;
     for(Header pair : requestHeaders){
-        string key = pair.first;
+        std::string key = pair.first;
         std::transform(key.begin(), key.end(), key.begin(), ::tolower);
 
         if(key == "transfer-encoding"){
-            string chunked = "chunked";
-            string identity = "identity";
+            std::string chunked = "chunked";
+            std::string identity = "identity";
             if(std::equal(pair.second.end()-chunked.size(), pair.second.end(), chunked.begin())){
                 bodyType = CHUNKED;
                 return true;
@@ -472,10 +460,11 @@ bool HttpRequestParser::prepareContentLengthAndBodyType() { // TODO 优化逻辑
 
 PARSED_STATE IdentityBodyParser::operator()(char buf[], int sz, int &used){
     if(contentLength < 0){
+        used = 1;
         return S_FAILURE;
     }
 
-    if(parsedLength + sz <= contentLength){
+    if(parsedLength + sz < contentLength){
         body.insert(body.end(), buf, buf+sz);
         parsedLength += sz;
         used = sz;
@@ -503,34 +492,109 @@ void IdentityBodyParser::clear() {
 
 
 PARSED_STATE ChunkedBodyParser::operator()(char *buf, int sz, int &used) {
-    //TODO
-    int i=0;
-    for(; i<sz; i++){
+    int i=0, tmp=0;
+    PARSED_STATE s;
+    for(; i<sz && state!=GOOD && state!=BAD; i++){
         char c = buf[i];
         switch (state){
             case START:
                 state = (isHex(c) ? CHUNK_SIZE: BAD);
+                chunkSize.push_back(c);
                 break;
             case CHUNK_SIZE:
+                if(isCR(c)){
+                    state = CRLF1;
+                }else if(c == ';'){
+                    state = EXTENSION;
+                }else if(isHex(c)){
+                    chunkSize.push_back(c);
+                    state = CHUNK_SIZE;
+                }else{
+                    state = BAD;
+                }
                 break;
-            case :
+            case EXTENSION:
+                if(isCR(c)){
+                    state = CRLF1;
+                }else if(!(isTockenChar(c) || c == ';' || c == '=')){
+                    state = BAD;
+                }
                 break;
-            case :
+            case CRLF1:
+                if(isLF(c)){
+                    int cksz;
+                    try {
+                        cksz = std::stoi(chunkSize, nullptr, 16);
+                        chunkSize.clear();
+                    }catch (std::invalid_argument &e){
+                        cksz = -1;
+                    }
+                    if(cksz > 0){
+                        state = DATA;
+                        chunkParser.setContentLength(cksz);
+                    }else if(cksz == 0){
+                        state = TRAILER;
+                    }else{
+                        state = BAD;
+                    }
+                }else{
+                    state = BAD;
+                }
                 break;
-            case :
+            case DATA: // TODO 优化，这里拷贝headers太费时间
+                s = chunkParser.operator()(buf+i, sz-i, tmp);
+                i = i + tmp - 1;
+                if(s == S_SUCCESS){
+                    state = CR2;
+                    body.insert(body.end(), chunkParser.body.begin(), chunkParser.body.end());
+                    chunkParser.clear();
+                }else if(s == S_FAILURE){
+                    state = BAD;
+                }else{
+                    state = DATA;
+                }
                 break;
-            case :
+            case TRAILER:
+                s = trailerParser.operator()(buf+i, sz-i, tmp);
+                i = i + tmp - 1;
+                if(s == S_SUCCESS){
+                    state = GOOD;
+                    headers.insert(headers.end(), trailerParser.headers.begin(), trailerParser.headers.end());
+                    trailerParser.clear();
+                }else if(s == S_FAILURE){
+                    state = BAD;
+                }else{
+                   state = TRAILER;
+                }
                 break;
+            case CR2:
+                state = (isCR(c) ? LF2 : BAD);
+                break;
+            case LF2:
+                state = (isLF(c) ? START : BAD);
             default:
                 break;
         }
     }
+
+    used = i;
+    if(state == GOOD){
+        return S_SUCCESS;
+    }else if(state == BAD){
+        return S_FAILURE;
+    }else{
+        return S_PARSING;
+    }
+
 }
 
 void ChunkedBodyParser::clear() {
-    //TODO
-
-
+    state = START;
+    chunkSize.clear();
+    body.clear();
+    headers.clear();
+    chunkParser.clear();
+    trailerParser.clear();
 }
 
 
@@ -542,52 +606,9 @@ void ChunkedBodyParser::clear() {
 
 
 
-using std::cout;
-using std::endl;
-
-int main() {
-//    char buf0[] = "GET /~prs";
-//    char buf1[] = "/15-441-F15/ HTT";
-//    char buf2[] = "P/1.1\r";
-//    char buf3[] = "\n";
-//    ParseRequestLine parseRequestLine;
-//    int ret = 0;
-//    ret = parseRequestLine(buf0, strlen(buf0));
-//    ret = parseRequestLine(buf1, strlen(buf1));
-//    ret = parseRequestLine(buf2, strlen(buf2));
-//    ret = parseRequestLine(buf3, strlen(buf3));
-//    cout << ret << endl <<
-//        parseRequestLine.method << endl <<
-//        parseRequestLine.url << endl <<
-//        parseRequestLine.version << endl;
-//
-//
-//    cout << endl;
-//    parseRequestLine.clear();
-//
-//    char buf[] = "GET /baidu.com/%as?&ss=kkdsaf HTTP/1.1\r\n";
-//    int i = strlen(buf);
-//    ret = parseRequestLine(buf, i);
-//    cout << ret << endl <<
-//         parseRequestLine.method << endl <<
-//         parseRequestLine.url << endl <<
-//         parseRequestLine.version << endl;
-
-//  "Host:\r\n   wwwcscmuedu\tbaidu\r\n \r\n google\r\n"
-    char buf[] = "Host:\r\n   wwwcscmuedu\tbaidu\r\n \r\n google\r\nHost: google\r\nConnection: keep-alive\r\nUpgrade-Insecure-Requests: 1\r\n\r\n";
-    int l = strlen(buf);
-    int ret = 0;
-    RequestHeadersParser parser;
-    PARSED_STATE s = parser(buf, l, ret);
-
-    cout << s << endl;
-    cout << ret << endl;
-    cout << l << endl;
-    for(auto i : parser.headers){
-        cout << i.first << " : " << i.second << "\n";
-    }
 
 
 
-    return 0;
-}
+
+
+
