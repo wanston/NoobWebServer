@@ -1,0 +1,71 @@
+生产者消费者模型；
+    1. 用mutex cond实现
+    2. 还是PV操作实现
+
+消费者线程何时写数据？
+    1. 一直不停地写
+    2. 缓冲区满了再写
+
+
+I believe you are on right track in terms of using a separate thread pool for logging. In lot of products you will see the asynchronous logging feature. Logs are accumulated and pushed to log files using a separate thread than the request thread. Especially in prodcution environments, where are millions of incoming request and your response time need to be less than few seconds. You cannot afford anything such as logging to slow down the system. So the approach used is to add logs in a memory buffer and push them asynchronously in reasonably sized chunks.
+
+A word of caution while using thread pool for logging As multiple threads will be working on the log file(s) and on a memory log buffer, you need to be careful about the logging. You need to add logs in a FIFO kind of a buffer to be sure that logs are printed in the log files sorted by time stamp. Also make sure the file access is synchronized and you don't run into situation where log file is all upside down or messed up.
+
+
+思路一：
+使用线程安全的队列，队列存储字符串，每当有线程push数据，就唤醒后台线程写数据。即典型的生产者消费者模型。
+缺点：
+push和pop数据的时候会持续申请释放内存
+持续的小块的IO开销不划算
+
+思路二：
+使用一个缓冲区，当缓冲区满的时候，就notify后台线程写数据。
+缺点：
+写数据的时候，会阻塞住新的数据push进缓冲区
+
+思路三：
+使用多个缓冲区，当缓冲区满的时候，notify后台线程写数据；然后新来的数据写在另外的缓冲区中。
+
+log.push
+    lock:
+    push数据进缓冲区。如果存在满的缓冲区，就重置定时器
+    unlock
+    notify后台线程
+
+buffer.push
+    加锁，拷贝数据，如果缓冲区不够（或者刚好够），就使用下一个缓冲区，并且把满的缓冲区标记为full。
+
+buffer.pop
+    检查有没有full的缓冲区，若有，就pop数据出来，然后把缓冲区标记为empty。
+
+后台线程：没有条件竞争
+    wait t
+    if(队列头有满的缓冲区)
+        pop缓冲区
+        写文件
+    else
+        // 说明超时
+        lock
+        if 有full
+            unlock
+            pop缓冲区
+            写文件
+        else if 有using
+            标记using缓冲区为full
+            然后使用下一块缓冲区
+            unlock
+            pop缓冲区
+            写文件
+        else // empty
+            unlock
+
+        unlock
+    循环执行buffer.pop，然后写到文件。
+
+
+问题来了：
+    定时写数据怎么实现？ 如果距离上一次写文件有t时间，并且存在使用中的缓冲区，就把使用中的缓冲区标记为full，然后notify后台线程。定时器的话，复杂化程序了，因为实现定时器本身就需要锁和条件变量。
+    怎么notify后台线程？
+
+
+
