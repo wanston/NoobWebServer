@@ -11,23 +11,30 @@
 #include <string>
 #include <mutex>
 #include <condition_variable>
+#include <chrono>
+#include <thread>
+#include <sstream>
 
 using namespace std;
 
 struct Block{
-    char *buf;
-    int size;
-    int cur;
-    bool full;
-    Block *next;
+private:
+    char* buf;
+    const size_t size;
+    size_t cur; // 已用字符数
 
-    Block(int size) : size(size), cur(0) {
-        buf = new char[size];
-    }
+public:
+    Block *pre;
+    bool ready;
 
-    ~Block(){
-        delete[] buf;
-    }
+    explicit Block(size_t size);
+
+    ~Block();
+
+    size_t push(const char* src, size_t sz);
+    string pop();
+
+    bool empty();
 };
 
 
@@ -36,21 +43,25 @@ struct Block{
  * **/
 class LogBuffer{
 private:
-    bool empty;
     Block *front;
     Block *back;
-    int blockSize;
+    size_t blockSize;
 public:
-    LogBuffer();
+    explicit LogBuffer(size_t sz = 1024);
     ~LogBuffer();
-    void push(const char buf[], size_t size);
+    void push(const string &str);
     /**
-     * 功能：pop出标记为full的block内的数据
+     * 功能：pop出标记为ready的block内的数据
      * 返回值：pop出的数据的大小，0表示没有满足条件的block
      * **/
-    size_t pop(char buf[]); // 返回pop的字节数, 0表示pop失败
+    string pop(); // 返回pop的字节数, 0表示pop失败
 
-    bool hasFullBlock();
+    void makeReady();
+
+    bool ready(); //TODO ready
+    bool empty();
+
+    Block *getBlockAfterBack(); // 获得队尾部的空block，此时block已经加入队列，切为空。
 };
 
 
@@ -58,24 +69,33 @@ public:
 class Log {
 private:
     string filePath;
-    fstream fout;
+    ostream *fout;
     LogBuffer buffer;
     mutex bufLockMtx;
-    mutex condLockMtx;
     condition_variable condVar;
     bool running;
-    char *writeBuf;
-    size_t bufSz;
+    chrono::duration<int> flushInterval;
+    void logThreadFn();
+    thread logThread;
 public:
-    Log();
+    explicit Log(const string& filePath = "", int flushInterval = 1);
     ~Log();
-    /**
-     * 开一个后台线程写文件
-     * **/
-    void run();
     template <typename T>
-    Log& operator<<(T obj);
+    Log& operator <<(T obj);
 };
 
+template <typename T>
+Log& Log::operator<<(T obj) {
+    ostringstream ss;
+    ss << obj;
+    if(!ss.str().empty()){
+        bufLockMtx.lock();
+        buffer.push(ss.str());
+        bufLockMtx.unlock();
+        if(buffer.ready())
+            condVar.notify_all();
+    }
+    return *this;
+}
 
 #endif //NOOBHTTPPARSER_LOG_H
