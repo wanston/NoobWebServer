@@ -65,7 +65,6 @@ public:
 };
 
 
-// TODO: 为什么会有虚假唤醒？
 class Log {
 private:
     string filePath;
@@ -96,6 +95,16 @@ Log& Log::operator<<(T obj) {
             condVar.notify_all();
     }
     return *this;
-}
+};
+
+//class LogWrap {
+//    static Log logger;
+//};
+//
+//Log LogWrap::logger("", 1);
+
+// 不能用静态成员来实现单例模式，因为会多处包含静态成员的定义
+
+#define LOG cout
 
 #endif //NOOBHTTPPARSER_LOG_H

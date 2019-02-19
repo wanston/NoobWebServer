@@ -1,0 +1,139 @@
+# 设计思路
+多线程的IO多路复用。
+主线程负责建立连接，分发连接到工作线程。
+工作线程：数目一定，每个线程负责一个事件循环。事件包括：socket读/写。
+Log线程：负责异步Log。
+
+
+# 问题
+## 基本问题
+Linux文件缓存机制是怎样的？
+异步IO的回调函数是怎么在新线程中执行的？
+线程池的计算任务怎么提交，计算结果怎么拿回如何进行异步的获取计算结果？
+线程池的任务分发策略？
+
+## 更具体的问题
+怎么终止server？怎么让其变为守护进程？
+定时器怎么设计？
+文件缓存模块如何设计？
+
+# 接下来...
+1. 解决基本问题，写博客
+2. 读网友的源码
+3. 思考更具体的问题
+
+异步I/O的api aio_read，通知I/O完成可以通过线程调用回调函数，具体是每个IO开一个线程还是多个IO同一个线程取决于系统的具体实现
+
+新的请求怎么加进线程池，。
+
+静态文件的IO采用缓存还是什么
+
+线程池
+    任务队列，n个线程
+
+
+
+# <future> 头文件
+##classes
+providers
+    promise
+    packaged_task
+
+futures
+    future
+    shared_future
+
+others
+    future_error
+    future_errc
+    future_status
+    launch
+## functions
+async
+future_category
+
+
+
+
+encode的时候使用：
+阻塞IO
+mmap
+异步IO
+
+
+主线程
+    监听端口，建立连接，注册channel，然后分发channel到某个子线程。
+
+n个子线程
+阻塞IO或者mmap
+    channel可以同时标记为可读可写。每个channel代表一个连接，和一个fd关联。
+    1. read：读socket，decode读到的数据，在decode的回调函数中，阻塞IO读取目标文件，encode，把构造好的报文添加到write的buffer。然后，根据read的结果和write的buffer中是否还有数据，重新注册channel。
+    2. write: 写socket，把buffer里面的数据写回socket，根据写的结果重新注册channel。
+
+    为了防止多个请求同时打开同个文件导致的资源浪费。采用带计时器的缓存机制。或者带计时器的mmap机制。
+
+异步IO
+    channel只表示可读或者可写，每个channel只表示一个异步操作，有read socket、write socket、read regular file三种。
+    使用select监听signalfd，可读即表示异步操作完成，然后执行操作的回调函数。
+    回调函数：
+    1. read socket：解析报文，解析报文的回调函数里：构造报文，执行异步read regular file。
+    2. read regular file：继续构造报文，若构造完成且前面的报文也已写入，则执行异步write socket。
+    3. write: 。
+    需要一个表示连接的类管理这些异步操作，保存连接的各种状态。这个类的作用是：
+    管理连接中多条报文的write的顺序。因为read socket会产生多个异步读文件的操作，而write socket是需要顺序的。
+    保存encode的状态，从而可以继续构造报文。
+
+
+
+现在感觉可以有两种思路：
+1. IO多路复用 Reactor模式，在encode的过程中执行非阻塞IO。
+2. Proactor模式，采用异步IO。但是实际上也是采用的。
+
+
+
+
+具体的设计：
+
+Server
+    acceptor： 接收新连接
+    poller：管理各个channel，每个thread里面运行一个poller
+
+poller：
+    channel：具体的事件
+
+channel：
+    fd
+    read handler
+    write handler
+
+connection:
+    read handler：用于绑定到channel
+    write handler：
+
+对网友的改进：
+    代码层面的改进：
+    channel要和connection(httpData)分离
+    connection(httpData)要和parser分离
+
+    设计层面的改进：
+    httpParser的设计
+    异步日志的设计
+    文件缓冲的设计（同时打开的文件数目）
+
+
+
+
+
+
+
+
+
+需要的类
+Server: 
+Reactor : 管理多个线程，每个线程运行一个时间循环。采用某调度机制向某个时间循环添加事件
+EventLoop：具体管理事件
+Channel: 每个Channel仅仅是一个事件，表示虚基类
+Conn: 或者直接继承Channel
+Epoll: 对epoll的封装
+
+

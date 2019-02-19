@@ -57,6 +57,6 @@ void testLog(){
 
 
 int main() {
-    testLog();
+
     return 0;
 }
