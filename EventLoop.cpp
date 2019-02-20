@@ -51,7 +51,7 @@ void EventLoop::run() {
             __channels[fd]->handleEvents(__events[i].events);
         }
 
-        //TODO: 处理超时
+        // 处理超时的timer, timer的回调函数里面会移除channel
         // 如何处理超时
         // 设置epoll 的timeout,每次醒来,就检查时间
 //        manager.handleExpiredTimer(){
@@ -60,6 +60,8 @@ void EventLoop::run() {
 //        }
 //
 //        另外,channel的两个handler里面需要执行更新timer,(也就是新加一个timer).
+//
+        __timerManager.runPerTick();
 
 
         // TODO: 加锁
@@ -100,6 +102,14 @@ void EventLoop::addChannel(ChannelPtr channel) {
     }
     __channels[fd] = channel;
     ++__channelsCount;
+
+    int timeout = channel->getTimeout();
+
+    // f负责从eventLoop移除channel, 关闭fd是channel析构时做的
+    auto f = std::bind(&EventLoop::delChannel, this, channel);
+    if(timeout != 0){
+        __timerManager.registerTimer(make_shared<Timer>(timeout, f));
+    }
 }
 
 

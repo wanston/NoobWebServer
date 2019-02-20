@@ -9,7 +9,7 @@
 
 using namespace std;
 
-Channel::Channel(int fd, uint32_t event) : __fd(fd), __event(event){
+Channel::Channel(int fd, uint32_t event, int timeout) : __fd(fd), __event(event), __timeout(timeout){
     setSocketNonBlocking(__fd);
 }
 
@@ -26,6 +26,11 @@ int Channel::getFd() {
 
 uint32_t Channel::getEvent() {
     return __event;
+}
+
+
+int Channel::getTimeout() {
+    return __timeout;
 }
 
 

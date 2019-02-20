@@ -6,6 +6,7 @@
 #define NOOBWEDSERVER_EVENTLOOP_H
 
 #include "Channel.h"
+#include "TimerManager.h"
 #include <vector>
 #include <sys/epoll.h>
 
@@ -39,7 +40,10 @@ private:
     int __eventFd;
     unsigned int __channelsCount;
     ChannelPtr __channels[MAX_FD];
-    struct epoll_event __events[MAX_FD];
+    struct epoll_event __events[MAX_FD];// 用来存储epoll_wait的结果
+    TimerManager __timerManager;
+    int __epollTimeout; // TODO init
+    int __channelTimeout; // TODO init
 
     // 存储需要mod或者del的fd.有条件竞争,因为要避免其他线程调用modChannel delChannel
     std::vector<int> __pendingModFds;

@@ -9,16 +9,18 @@
 
 class Channel {
 public:
-    explicit Channel(int fd, uint32_t event=0);
+    explicit Channel(int fd, uint32_t event=0, int timeout=0);
     virtual ~Channel();
     inline int getFd();
     inline uint32_t getEvent();
+    inline int getTimeout();
 //    inline void setEvent(uint32_t event);
     void handleEvents(uint32_t events);
 
 protected:
     int __fd;
     uint32_t __event; // 表示关心的事件,并不是发生的事件
+    int __timeout;
     virtual void __handleReadEvent();
     virtual void __handleWriteEvent();
 };
