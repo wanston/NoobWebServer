@@ -10,7 +10,6 @@
 using namespace std;
 
 Channel::Channel(int fd, uint32_t event, int timeout) : __fd(fd), __event(event), __timeout(timeout){
-    setSocketNonBlocking(__fd);
 }
 
 

@@ -6,13 +6,16 @@
 #include <sys/time.h>
 
 void TimerManager::registerTimer(TimerPtr timer) {
-    __priorityQueue.push(Node(timer, true));
+    if(timer->__timeout > 0){
+        __priorityQueue.push(timer);
+    }
 }
 
 
-void TimerManager::cancelTimer(TimerPtr timer) {
-    // 需要从timer找到node,
-    // 存一个map, 从指针 到
+void TimerManager::unregisterTimer(TimerPtr timer) {
+    if(timer){
+        timer->__valid = false;
+    }
 }
 
 
@@ -20,15 +23,16 @@ void TimerManager::runPerTick() {
     struct timeval now;
 
     while(!__priorityQueue.empty()){
-        Node node = __priorityQueue.top();
+        TimerPtr timer = __priorityQueue.top();
         gettimeofday(&now, nullptr);
 
-        if(!node.valid){ // 未超时就注销了
+        if(!timer->__valid){ // 失效
             __priorityQueue.pop();
-        }else if(timevalCompLess(node.timerPtr->__triggerTime, now)){ // 超时了
-            node.timerPtr->__callback();
+        }else if(timevalCompLess(timer->__triggerTime, now)){ // 有效，并且时间到了
+            timer->__valid = false;
+            timer->__callback();
             __priorityQueue.pop();
-        }else{
+        }else{ // 有效，并且时间未到
             return;
         }
     }

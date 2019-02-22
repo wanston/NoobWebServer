@@ -9,18 +9,18 @@
 
 class Channel {
 public:
-    explicit Channel(int fd, uint32_t event=0, int timeout=0);
+    explicit Channel(int fd, uint32_t event, int timeout);
     virtual ~Channel();
-    inline int getFd();
-    inline uint32_t getEvent();
-    inline int getTimeout();
-//    inline void setEvent(uint32_t event);
+    int getFd();
+    uint32_t getEvent();
+    int getTimeout(); // 不能有setTimeout
+    void setEvent(uint32_t event);
     void handleEvents(uint32_t events);
 
 protected:
     int __fd;
-    uint32_t __event; // 表示关心的事件,并不是发生的事件
-    int __timeout;
+    uint32_t __event; // 表示添加到epoll的事件
+    const int __timeout;
     virtual void __handleReadEvent();
     virtual void __handleWriteEvent();
 };

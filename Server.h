@@ -9,15 +9,15 @@
 
 class Server {
 public:
-    void Run();
     Server(int port);
+    void run();
 private:
     int __port;
     int __listenFd;
     bool __running;
     Reactor __reactor;
 
-    int __BindListenSocket() const;
+    int __makeListenFd() const;
 };
 
 

@@ -137,3 +137,62 @@ Conn: 或者直接继承Channel
 Epoll: 对epoll的封装
 
 
+
+
+
+addchannel
+modchannel
+
+
+超时（从上一次可读，到现在这个时刻）timer的回调  delchannel（注意，此时有活动的channel里面可能包含超时的channel，我采取的策略是尽管channel来活动了，但是超时了还是去除channel）。
+
+此时会有del的channel，这时需要
+
+
+
+有活动的channel的回调 delchannel modchannel
+
+
+
+
+
+真正的delchannel deltimer， modchannel
+
+更新timer
+
+
+
+
+wait
+
+注销并重新注册有活动的channel的timer（其中可能有超时的timer）。
+
+调用超时的timer的回调函数（delChannel）（由于之前重新注册了timer，所以有活动的timer不会超时，超时的只可能是没有活动的timer。）(注意，如果compute的时间过长，也不会导致有活动的连接被视为超时，因为先重新注册再判断超时)
+
+调用活动channel的回调函数（delChannel modChannel）（活动的channel 和 超时的channel 肯定没有交集）（其中可能会需要更改event，或者 删除channel、删除timer）。
+
+执行addchannel delchannel modchannel的后续工作，即从两个数组中添加、移除channel、timer，epoll中添加、移除和更改fd（把实际移除操作从delChannel分出来，是因为要允许callBack里面执行delChannel）。
+
+
+addChannel 也需要处理线程安全的问题，其中的添加timer并不是线程安全的。因为可能主线程在向优先队列push，EventLoop线程在向优先队列pop。
+
+
+delChannel里面
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

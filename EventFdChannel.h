@@ -10,9 +10,7 @@
 
 class EventFdChannel : public Channel {
 public:
-    explicit EventFdChannel(int fd) : Channel(fd) {
-        __event = EPOLLIN;
-    }
+    explicit EventFdChannel(int fd) : Channel(fd, EPOLLIN, 0) {}
 private:
     void __handleReadEvent() override;
 };

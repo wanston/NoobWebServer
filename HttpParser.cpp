@@ -2,7 +2,7 @@
 #include <cstring>
 #include <algorithm>
 
-#include "httpParser.h"
+#include "HttpParser.h"
 
 
 
@@ -596,19 +596,3 @@ void ChunkedBodyParser::clear() {
     chunkParser.clear();
     trailerParser.clear();
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

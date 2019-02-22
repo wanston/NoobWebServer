@@ -21,14 +21,15 @@ using namespace std;
  * **/
 class Reactor {
 public:
-    explicit Reactor(unsigned int threads = 5);
+    explicit Reactor(unsigned int threads = 5, int timeout = 10);
     ~Reactor();
-    void addChannel(ChannelPtr channel);
+    void addChannel(int fd);
 
 private:
     const unsigned int __threadsNum;
     vector<thread> __threadPool;
     vector<shared_ptr<EventLoop>> __eventLoopPtrs;
+    int __timeout;
 };
 
 

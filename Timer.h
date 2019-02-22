@@ -7,33 +7,22 @@
 
 #include <memory>
 
-class Timer;
-
-typedef std::shared_ptr<Timer> TimerPtr;
-
 class Timer {
 public:
     // timeout表示多长时间后触发callback, 单位是秒.
     Timer(int timeout, std::function<void()> callback);
     ~Timer() = default;
 private:
-    int __timeout;
+    int __timeout; // 单位s
+    bool __valid;
     struct timeval __triggerTime;
     std::function<void()> __callback;
 
     friend class TimerManager;
 };
 
+typedef std::shared_ptr<Timer> TimerPtr;
 
-bool timevalCompLess(struct timeval a, struct timeval b){
-    if(a.tv_sec < b.tv_sec){
-        return true;
-    }else if(a.tv_sec == b.tv_sec){
-        return a.tv_usec < b.tv_usec;
-    }else{
-        return false;
-    }
-}
-
+bool timevalCompLess(struct timeval a, struct timeval b);
 
 #endif //NOOBWEDSERVER_TIMER_H

@@ -14,8 +14,8 @@
  * Description:
  *  初始化，监听描述符
  * **/
-void Server::Run() {
-    if((__listenFd = __BindListenSocket()) == -1){
+void Server::run() {
+    if((__listenFd = __makeListenFd()) == -1){
         LOG << "Invalid listen fd. Error: " << strerror(errno) << "\n";
         exit(0);
     }
@@ -23,17 +23,18 @@ void Server::Run() {
     while(__running){ // 需要eventfd来唤醒accept
         struct sockaddr_in clientAddr;
         socklen_t clientSize = sizeof(clientAddr);
-        int acceptFd = 0;
-        if ((acceptFd = accept(__listenFd, (struct sockaddr *) &clientAddr, &clientSize)) <= 0) {
+        int acceptedFd = 0;
+        if ((acceptedFd = accept(__listenFd, (struct sockaddr *) &clientAddr, &clientSize)) <= 0) {
             LOG << "Accept error. Error: " << strerror(errno) << "\n";
         }
 
-        __reactor.addChannel(make_shared<HttpChannel>(acceptFd));
+        // 在这里要注意timeout
+        __reactor.addChannel(acceptedFd);
     }
 }
 
 
-int Server::__BindListenSocket() const {
+int Server::__makeListenFd() const {
     // 创建socket(IPv4 + TCP)，返回监听描述符
     int listen_fd = 0;
     if((listen_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1)

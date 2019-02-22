@@ -6,8 +6,9 @@
 #include <cstring>
 #include <sstream>
 #include <unistd.h>
-#include "httpParser.h"
+#include "HttpParser.h"
 #include "Log.h"
+#include "Server.h"
 
 using std::cout;
 using std::endl;
@@ -57,6 +58,7 @@ void testLog(){
 
 
 int main() {
-
+    Server s(11111);
+    s.run();
     return 0;
 }

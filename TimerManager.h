@@ -8,26 +8,22 @@
 #include "Timer.h"
 #include <queue>
 #include <vector>
+#include <algorithm>
+
 
 class TimerManager {
 public:
     void registerTimer(TimerPtr timer);
-    void cancelTimer(TimerPtr timer);
+    void unregisterTimer(TimerPtr timer);
     void runPerTick();
 private:
 
-    struct Node{
-        TimerPtr timerPtr;
-        bool valid;
-        Node(TimerPtr t, bool b) : timerPtr(t), valid(b) {}
-    };
-
-    struct NodeComp {
-        bool operator()(Node a, Node b) const{
-            return ! timevalCompLess(a.timerPtr->__triggerTime, b.timerPtr->__triggerTime);
+    struct Comp {
+        bool operator()(TimerPtr a, TimerPtr b) const{
+            return ! timevalCompLess(a->__triggerTime, b->__triggerTime);
         }
     };
-    std::priority_queue<Node, std::vector<Node>, NodeComp> __priorityQueue;
+    std::priority_queue<TimerPtr, std::vector<TimerPtr>, Comp> __priorityQueue;
 };
 
 
