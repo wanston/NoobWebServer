@@ -7,7 +7,7 @@
 
 #include <memory>
 
-class Channel {
+class Channel : public std::enable_shared_from_this<Channel>{
 public:
     explicit Channel(int fd, uint32_t event, int timeout);
     virtual ~Channel();

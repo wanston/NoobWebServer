@@ -10,8 +10,7 @@
 
 Reactor::Reactor(unsigned int threads, int timeout):
 __threadsNum(threads),
-__timeout(timeout),
-__eventLoopPtrs(__threadsNum, make_shared<EventLoop>())
+__timeout(timeout)
 {
     if(__threadsNum == 0){
         LOG << "Reactor threads num is 0.\n";
@@ -19,7 +18,8 @@ __eventLoopPtrs(__threadsNum, make_shared<EventLoop>())
     }
 
     for(int i=0; i<__threadsNum; i++){
-        shared_ptr<EventLoop> p(__eventLoopPtrs[i]);
+        std::shared_ptr<EventLoop> p = make_shared<EventLoop>();
+        __eventLoopPtrs.push_back(p);
         __threadPool.emplace_back(std::thread([p](){
             p->run();
         }));
@@ -63,7 +63,7 @@ void Reactor::addChannel(int fd) {
         return;
     }
     // idx 表示最小负载的线程的索引
-    __eventLoopPtrs[idx]->addChannel(make_shared<HttpChannel>(fd, __timeout));
+    __eventLoopPtrs[idx]->addChannel(make_shared<HttpChannel>(fd, __timeout, __eventLoopPtrs[idx]));
 }
 
 

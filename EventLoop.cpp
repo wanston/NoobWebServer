@@ -24,6 +24,8 @@ __channelsCount(0)
         exit(0);
     }
     addChannel(make_shared<EventFdChannel>(__eventFd));
+
+    LOG << "EventLoop::ctor __eventFd " << __eventFd << '\n';
 }
 
 
@@ -71,7 +73,7 @@ void EventLoop::run() {
         for(int i=0; i<eventsCount; i++){
             int fd = __events[i].data.fd;
             int timeout = __channels[fd]->getTimeout();
-            auto f = std::bind(&EventLoop::delChannel, this, __channels[fd]);
+            auto f = std::bind(&EventLoop::__timerCallback, this, __channels[fd]);
             // 注销旧的
             __timerManager.unregisterTimer(__timers[fd]);
             // 注册新的
@@ -89,7 +91,15 @@ void EventLoop::run() {
             __channels[fd]->handleEvents(__events[i].events);
         }
 
-        // addChannel、modChannel、delChannel的实际操作
+        // 先删除
+        {
+            std::lock_guard<std::mutex> lock(__delMutex);
+            for(int fd : __pendingDelFds){
+                __realDelChannel(fd);
+            }
+            __pendingDelFds.clear();
+        }
+        // 再添加
         {
             std::lock_guard<std::mutex> lock(__addMutex);
             for(ChannelPtr channel : __pendingAddChannels){
@@ -104,14 +114,6 @@ void EventLoop::run() {
                 __realModChannel(fd);
             }
             __pendingModFds.clear();
-        }
-
-        {
-            std::lock_guard<std::mutex> lock(__delMutex);
-            for(int fd : __pendingDelFds){
-                __realDelChannel(fd);
-            }
-            __pendingDelFds.clear();
         }
     }
 }
@@ -173,7 +175,7 @@ void EventLoop::__realAddChannel(ChannelPtr channel) {
     }
     // timer
     int timeout = channel->getTimeout();
-    auto f = std::bind(&EventLoop::delChannel, this, channel);
+    auto f = std::bind(&EventLoop::__timerCallback, this, channel);
     TimerPtr timer(new Timer(timeout, f));
     __timerManager.registerTimer(timer);
     __timers[fd] = timer; // 肯定有tmer，即使timeout是0
@@ -224,8 +226,17 @@ void EventLoop::__wakeUp() {
     // TODO: 处理write返回INTR的错误
     uint64_t one = 1;
     ssize_t r = write(__eventFd, &one, sizeof(one));
+    LOG << "__wakeUp fd " << __eventFd << '\n';
+
     if(r != sizeof(one)){
         LOG << "Error in __wakeUp\n";
         exit(0);
     }
 }
+
+
+void EventLoop::__timerCallback(ChannelPtr channel) {
+    LOG << "EventLoop::__timerCallback\n";
+    delChannel(channel);
+}
+

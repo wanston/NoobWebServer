@@ -177,8 +177,29 @@ wait
 addChannel 也需要处理线程安全的问题，其中的添加timer并不是线程安全的。因为可能主线程在向优先队列push，EventLoop线程在向优先队列pop。
 
 
-delChannel里面
+delChannel里面会有新的解释
 
+
+
+
+整理博客，设计测试代码，写测试代码
+
+
+
+# 测试代码
+目前已经写完的是事件循环，需要测试socket连接的 读、写、超时等回调函数是否被调用。
+建立n条socket连接。
+
+
+先写完，再考虑处理关闭连接和删除channel的问题
+
+
+channel的回调函数里面需要及时的close掉文件描述符，但是是否需要及时删除channel在eventloop中的记录呢？
+不及时：来了新的channel，可能覆盖掉旧的channel。
+及时：清理掉旧的channel。
+
+采用的就是在循环中，添加和删除channel的策略。只需要保证先删除再添加就可以 在添加的时候验证是否会覆盖掉旧的channel。
+如果在channel的回调函数里面忘了delChannel怎么办？超时机制起作用。
 
 
 

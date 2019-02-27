@@ -3,6 +3,7 @@
 //
 
 #include "Channel.h"
+#include "Log.h"
 #include <exception>
 #include <unistd.h>
 #include <sys/epoll.h>
@@ -15,6 +16,7 @@ Channel::Channel(int fd, uint32_t event, int timeout) : __fd(fd), __event(event)
 
 Channel::~Channel() {
     close(__fd);
+    LOG << "Channel::~Channel fd " << __fd << '\n';
 }
 
 
@@ -46,7 +48,9 @@ int Channel::getTimeout() {
 void Channel::handleEvents(uint32_t events) {
     if(events & (EPOLLERR | EPOLLRDHUP | EPOLLHUP | EPOLLIN)){
         __handleReadEvent();
-    }else if(events & EPOLLOUT){
+    }
+
+    if(events & EPOLLOUT){
         __handleWriteEvent();
     }
 }

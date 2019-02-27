@@ -49,6 +49,7 @@ private:
     void __realModChannel(int fd);
     void __realDelChannel(int fd);
     void __wakeUp();
+    void __timerCallback(ChannelPtr channel);
 
 
     bool __quit;

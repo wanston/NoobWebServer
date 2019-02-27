@@ -352,8 +352,10 @@ int HttpRequestParser::operator()(char *buf, int sz) {
                         messageBody = std::move(identityBodyParser.body);
                         identityBodyParser.clear();
                         if(callback != nullptr){
-                            if(callback(userData, requestMethod, requestUrl, httpVersion, requestHeaders, messageBody) == 0)
+                            if(callback(userData, requestMethod, requestUrl, httpVersion, requestHeaders, messageBody) == 0){
+                                prepareNextRequest();
                                 return i+1;
+                            }
                         }
                         prepareNextRequest();
                     }else{
@@ -372,8 +374,10 @@ int HttpRequestParser::operator()(char *buf, int sz) {
                         messageBody = std::move(chunkedBodyParser.body);
                         chunkedBodyParser.clear();
                         if(callback != nullptr){
-                            if(callback(userData, requestMethod, requestUrl, httpVersion, requestHeaders, messageBody) == 0)
+                            if(callback(userData, requestMethod, requestUrl, httpVersion, requestHeaders, messageBody) == 0){
+                                prepareNextRequest();
                                 return i+1;
+                            }
                         }
                         prepareNextRequest();
                     }else{
