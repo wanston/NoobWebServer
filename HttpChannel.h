@@ -22,16 +22,18 @@ private:
     vector<char> __sendBuf;
 
     enum{
-        NORMAL,
-        NO_RD,
-        NO_RDWR
-    }__state = NORMAL;
+        S_IN,
+        S_OUT,
+        S_IN_OUT,
+        S_CLOSE
+    }__curState = S_IN, __nextState = S_IN;
+
 
     void __handleReadEvent() override;
     void __handleWriteEvent() override;
     int __readn(int fd, vector<char> &buf) const;
     int __writen(int fd, const vector<char> &buf) const;
-    int __parserCallback(void *data, string &method, string &url, string &version, std::vector<Header> &requestHeaders, std::vector<char>& messageBody);
+    bool __parserCallback(string &method, string &url, string &version, std::vector<Header> &requestHeaders, std::vector<char>& messageBody);
 };
 
 

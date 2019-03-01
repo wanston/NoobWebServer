@@ -351,8 +351,8 @@ int HttpRequestParser::operator()(char *buf, int sz) {
                         state = LINE;
                         messageBody = std::move(identityBodyParser.body);
                         identityBodyParser.clear();
-                        if(callback != nullptr){
-                            if(callback(userData, requestMethod, requestUrl, httpVersion, requestHeaders, messageBody) == 0){
+                        if(callback){
+                            if(!callback(requestMethod, requestUrl, httpVersion, requestHeaders, messageBody)){
                                 prepareNextRequest();
                                 return i+1;
                             }
@@ -361,9 +361,7 @@ int HttpRequestParser::operator()(char *buf, int sz) {
                     }else{
                         state = BAD;
                     }
-                }
-
-                if(bodyType == CHUNKED){
+                }else if(bodyType == CHUNKED){
                     int tmp;
                     PARSED_STATE s = chunkedBodyParser(buf+i, sz-i, tmp);
                     i = i + tmp - 1;
@@ -373,8 +371,8 @@ int HttpRequestParser::operator()(char *buf, int sz) {
                         state = LINE;
                         messageBody = std::move(chunkedBodyParser.body);
                         chunkedBodyParser.clear();
-                        if(callback != nullptr){
-                            if(callback(userData, requestMethod, requestUrl, httpVersion, requestHeaders, messageBody) == 0){
+                        if(callback){
+                            if(!callback(requestMethod, requestUrl, httpVersion, requestHeaders, messageBody)){
                                 prepareNextRequest();
                                 return i+1;
                             }
@@ -389,13 +387,12 @@ int HttpRequestParser::operator()(char *buf, int sz) {
                 break;
         }
     }
-    return state == BAD ? i-1 : i;
+    return state == BAD ? -i : i;// i表示已读的字符数
 }
 
 
 void HttpRequestParser::reset() {
     state = LINE;
-    userData = nullptr;
     callback = nullptr;
     bodyType = NO_BODY;
     prepareNextRequest();

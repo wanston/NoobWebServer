@@ -40,9 +40,9 @@ int Channel::getTimeout() {
 //}
 
 
-//void Channel::setEvent(uint32_t event) {
-//    __event = event;
-//}
+void Channel::setEvent(uint32_t event) {
+    __event = event;
+}
 
 
 void Channel::handleEvents(uint32_t events) {

@@ -7,6 +7,7 @@
 
 #include <string>
 #include <vector>
+#include <functional>
 
 enum PARSED_STATE{
     S_PARSING,
@@ -128,8 +129,12 @@ public:
 
 class HttpRequestParser{
 public:
-    void *userData = nullptr;
-    int (*callback)(void*, std::string&, std::string&, std::string&, std::vector<Header>&, std::vector<char>&) = nullptr;
+    // callback 返回true，表示解析完一条之后继续解析，不反回；返回false，表示解析成功之后即返回。
+    typedef std::function<bool (std::string&, std::string&, std::string&, std::vector<Header>&, std::vector<char>&)> CallBackType;
+    CallBackType callback = nullptr;
+    // 返回<0，表示报文格式错误，解析失败，返回值的绝对值表示已读的字符数，即成功接受的字符数+未成功接受的字符数（即1）；
+    // 返回>0的值表示解析未遇到问题，返回值表示已读的字符数。
+    // 不会返回0；
     int operator()(char buf[], int sz);
     void reset();
 private:
