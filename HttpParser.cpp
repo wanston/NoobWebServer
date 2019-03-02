@@ -327,6 +327,13 @@ int HttpRequestParser::operator()(char *buf, int sz) {
                     if(prepareContentLengthAndBodyType()){
                         if(bodyType == NO_BODY){
                             state = LINE;
+                            if(callback){
+                                if(!callback(requestMethod, requestUrl, httpVersion, requestHeaders, messageBody)){
+                                    prepareNextRequest();
+                                    return i+1;
+                                }
+                            }
+                            prepareNextRequest();
                         }else if(bodyType == IDENTITY){
                             state = BODY;
                             identityBodyParser.setContentLength(contentLength);
@@ -350,7 +357,6 @@ int HttpRequestParser::operator()(char *buf, int sz) {
                     }else if(s == S_SUCCESS){
                         state = LINE;
                         messageBody = std::move(identityBodyParser.body);
-                        identityBodyParser.clear();
                         if(callback){
                             if(!callback(requestMethod, requestUrl, httpVersion, requestHeaders, messageBody)){
                                 prepareNextRequest();
@@ -370,7 +376,6 @@ int HttpRequestParser::operator()(char *buf, int sz) {
                     }else if(s == S_SUCCESS){
                         state = LINE;
                         messageBody = std::move(chunkedBodyParser.body);
-                        chunkedBodyParser.clear();
                         if(callback){
                             if(!callback(requestMethod, requestUrl, httpVersion, requestHeaders, messageBody)){
                                 prepareNextRequest();

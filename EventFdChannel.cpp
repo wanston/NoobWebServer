@@ -9,8 +9,6 @@
 
 
 void EventFdChannel::__handleReadEvent() {
-    LOG << "read wakeup\n";
-
     uint64_t one = 1;
     ssize_t r = read(__fd, &one, sizeof(one));
     if(r != sizeof(one)){

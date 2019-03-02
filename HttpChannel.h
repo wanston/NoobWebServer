@@ -16,6 +16,7 @@ using namespace std;
 class HttpChannel : public Channel{
 public:
     HttpChannel(int fd, int timeout, std::weak_ptr<EventLoop> loop);
+    ~HttpChannel();
 private:
     std::weak_ptr<EventLoop> __eventLoop; // 用于自身调用delChannel来从其中删除channel。
     HttpRequestParser __parser;

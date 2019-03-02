@@ -4,10 +4,20 @@
 
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <unistd.h>
 #include <memory.h>
 #include "Server.h"
 #include "Log.h"
+
+
+Server::Server(int port, unsigned int threads, int timeout) : __port(port), __listenFd(-1), __reactor(threads, timeout) {
+    // 检查port值，取正确区间范围
+    if (__port < 0 || __port > 65535){
+        LOG << "Invalid port!\n";
+        exit(0);
+    }
+}
 
 
 /**
@@ -66,15 +76,4 @@ int Server::__makeListenFd() const {
         return -1;
     }
     return listen_fd;
-}
-
-
-Server::Server(int port) : __port(port), __listenFd(-1) {
-    // 检查port值，取正确区间范围
-    if (__port < 0 || __port > 65535){
-        LOG << "Invalid port!\n";
-        exit(0);
-    }
-
-
 }

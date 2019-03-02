@@ -24,8 +24,6 @@ __channelsCount(0)
         exit(0);
     }
     addChannel(make_shared<EventFdChannel>(__eventFd));
-
-    LOG << "EventLoop::ctor __eventFd " << __eventFd << '\n';
 }
 
 
@@ -99,6 +97,7 @@ void EventLoop::run() {
             }
             __pendingDelFds.clear();
         }
+
         // 再添加
         {
             std::lock_guard<std::mutex> lock(__addMutex);
@@ -226,7 +225,6 @@ void EventLoop::__wakeUp() {
     // TODO: 处理write返回INTR的错误
     uint64_t one = 1;
     ssize_t r = write(__eventFd, &one, sizeof(one));
-    LOG << "__wakeUp fd " << __eventFd << '\n';
 
     if(r != sizeof(one)){
         LOG << "Error in __wakeUp\n";
@@ -236,7 +234,7 @@ void EventLoop::__wakeUp() {
 
 
 void EventLoop::__timerCallback(ChannelPtr channel) {
-    LOG << "EventLoop::__timerCallback\n";
+//    LOG << "Thread id: " << std::this_thread::get_id() << " Channel timeout fd " << channel->getFd() << '\n';
     delChannel(channel);
 }
 

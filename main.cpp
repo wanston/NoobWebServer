@@ -21,7 +21,10 @@ void testLog(){
 
 
 int main() {
-    Server s(8080);
+    int port = 8080;
+    unsigned int threads = 5;
+    int timeout = 5;
+    Server s(port, threads, timeout);
     s.run();
     return 0;
 }

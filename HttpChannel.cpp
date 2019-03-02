@@ -17,6 +17,10 @@ Channel(fd, EPOLLIN, timeout), __eventLoop(loop){
 }
 
 
+HttpChannel::~HttpChannel() {
+    LOG << "Thread id: " << std::this_thread::get_id() << " Disconnected. fd " << __fd << '\n';
+}
+
 
 void HttpChannel::__handleReadEvent() {
     vector<char> recvData;
@@ -321,6 +325,8 @@ void HttpChannel::__handleWriteEvent() {
 
 bool HttpChannel::__parserCallback(string &method, string &url, string &version, std::vector<Header> &requestHeaders,
                           std::vector<char> &messageBody) {
+    LOG << "Thread id: " << std::this_thread::get_id() <<  " Received. " << method << ' ' << url << ' ' << version << " fd " << getFd() << '\n';
+
     // 构造报文，添进buffer，返回值应该使得没调用一次parser()返回一次。
     vector<char> response;
 
@@ -328,7 +334,7 @@ bool HttpChannel::__parserCallback(string &method, string &url, string &version,
         response = std::move(Response::make_xxx_response(HTTP_VERSION_NOT_SUPPORTED));
     }else{
         if(method == "GET"){
-            response = std::move(Response::make_get_response(url, requestHeaders, messageBody));
+            response = Response::make_get_response(url, requestHeaders, messageBody);
         }else if(method == "POST"){
             response = std::move(Response::make_post_response(url, requestHeaders, messageBody));
         }else if(method == "HEAD"){
@@ -339,6 +345,8 @@ bool HttpChannel::__parserCallback(string &method, string &url, string &version,
     }
 
     __sendBuf.insert(__sendBuf.end(), response.begin(), response.end());
+
+
 
     bool keepGoing = false;
     return keepGoing;

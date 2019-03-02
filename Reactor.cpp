@@ -6,6 +6,8 @@
 #include "HttpChannel.h"
 #include <fcntl.h>
 #include <string.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 
 Reactor::Reactor(unsigned int threads, int timeout):
@@ -63,6 +65,13 @@ void Reactor::addChannel(int fd) {
         return;
     }
     // idx 表示最小负载的线程的索引
+
+    struct sockaddr_in clientAddr;
+    socklen_t addr_size = sizeof(struct sockaddr_in);
+    int res = getpeername(fd, (struct sockaddr *)&clientAddr, &addr_size);
+
+    LOG << "Thread id: " << __threadPool[idx].get_id() << " Connected. Addr " <<  inet_ntoa(clientAddr.sin_addr) << ':' << clientAddr.sin_port << " fd " << fd << '\n';
+
     __eventLoopPtrs[idx]->addChannel(make_shared<HttpChannel>(fd, __timeout, __eventLoopPtrs[idx]));
 }
 

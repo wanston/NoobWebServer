@@ -11,12 +11,13 @@
 using namespace std;
 
 Channel::Channel(int fd, uint32_t event, int timeout) : __fd(fd), __event(event), __timeout(timeout){
+//    LOG << "Thread id: " << std::this_thread::get_id() << " Channel::Channel fd " << __fd << '\n';
 }
 
 
 Channel::~Channel() {
     close(__fd);
-    LOG << "Channel::~Channel fd " << __fd << '\n';
+//    LOG << "Thread id: " << std::this_thread::get_id() << " Channel::~Channel fd " << __fd << '\n';
 }
 
 

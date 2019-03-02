@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <fstream>
 #include "Response.h"
+#include "Log.h"
 
 using namespace std;
 
@@ -23,6 +24,8 @@ using namespace std;
 
 
 vector<char> responseToText(const string &version, const string &statusCode, const string &reason, const std::vector<Header> &headers, const vector<char> &messageBody){
+    LOG << "Thread id: " << std::this_thread::get_id() << " Reponse. " << version << ' ' << statusCode << ' ' << reason << '\n';
+
     vector<char> ret;
     ret.insert(ret.end(), version.begin(), version.end());
     ret.push_back(' ');
@@ -46,6 +49,7 @@ vector<char> responseToText(const string &version, const string &statusCode, con
     ret.push_back('\n');
 
     ret.insert(ret.end(), messageBody.begin(), messageBody.end());
+    return ret;
 }
 
 
@@ -69,7 +73,8 @@ std::vector<char> Response::make_get_response(std::string &url, std::vector<Head
     }else{
         std::vector<Header> headers = {Header("Server", "NoobWebServer/1.0"),
                                        Header("Content-Length", to_string(fileContent.size())),
-                                       Header("Content-Type", __pathToContentType(path))
+                                       Header("Content-Type", __pathToContentType(path)),
+                                       Header("Connection", "keep-alive")
                                        //TODO: 添加Date、Last-Modified等
         };
         return responseToText("HTTP/1.1", to_string(OK), __statusCodeToReason(OK), headers, fileContent);

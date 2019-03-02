@@ -9,7 +9,7 @@
 
 class Server {
 public:
-    Server(int port);
+    Server(int port, unsigned int threads, int timeout); //timeout 指定长连接的超时时间
     void run();
 private:
     int __port;

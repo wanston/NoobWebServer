@@ -21,7 +21,7 @@ using namespace std;
  * **/
 class Reactor {
 public:
-    explicit Reactor(unsigned int threads = 5, int timeout = 10);
+    explicit Reactor(unsigned int threads, int timeout);
     ~Reactor();
     void addChannel(int fd);
 
