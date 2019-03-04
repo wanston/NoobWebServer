@@ -97,14 +97,11 @@ Log& Log::operator<<(T obj) {
     return *this;
 };
 
-//class LogWrap {
-//    static Log logger;
-//};
-//
-//Log LogWrap::logger("", 1);
-
 // 不能用静态成员来实现单例模式，因为会多处包含静态成员的定义
+std::string curTime();
 
-#define LOG cout
+extern Log logger;
+
+#define LOG logger << curTime()
 
 #endif //NOOBHTTPPARSER_LOG_H

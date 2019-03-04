@@ -9,21 +9,9 @@
 
 using namespace std;
 
-//static string codeToReason(int statusCode){
-//    switch(statusCode){
-//        case 400:
-//            return "Bad request.";
-//        case 405:
-//            return "Method not allowed.";
-//        case 505:
-//            return "HTTP version not supported.";
-//        default:
-//            return "";
-//    }
-//}
+string Response::__workDir = "./www";
 
-
-vector<char> responseToText(const string &version, const string &statusCode, const string &reason, const std::vector<Header> &headers, const vector<char> &messageBody){
+vector<char> Response::__responseToText(const string &version, const string &statusCode, const string &reason, const std::vector<Header> &headers, const vector<char> &messageBody){
     LOG << "Thread id: " << std::this_thread::get_id() << " Reponse. " << version << ' ' << statusCode << ' ' << reason << '\n';
 
     vector<char> ret;
@@ -58,7 +46,7 @@ vector<char> Response::make_xxx_response(int statusCode) {
                                    Header("Server", "NoobWebServer/1.0"),
                                    Header("Content-Length", "0")};
 
-    return responseToText("HTTP/1.1", to_string(statusCode), __statusCodeToReason(statusCode), headers, vector<char>());
+    return __responseToText("HTTP/1.1", to_string(statusCode), __statusCodeToReason(statusCode), headers, vector<char>());
 }
 
 
@@ -77,7 +65,7 @@ std::vector<char> Response::make_get_response(std::string &url, std::vector<Head
                                        Header("Connection", "keep-alive")
                                        //TODO: 添加Date、Last-Modified等
         };
-        return responseToText("HTTP/1.1", to_string(OK), __statusCodeToReason(OK), headers, fileContent);
+        return __responseToText("HTTP/1.1", to_string(OK), __statusCodeToReason(OK), headers, fileContent);
     }
 }
 
@@ -102,7 +90,7 @@ std::vector<char> Response::make_head_response(std::string &url, std::vector<Hea
                                        Header("Content-Type", __pathToContentType(path))
                                        //TODO: 添加Date、Last-Modified等
         };
-        return responseToText("HTTP/1.1", to_string(OK), __statusCodeToReason(OK), headers, vector<char>());
+        return __responseToText("HTTP/1.1", to_string(OK), __statusCodeToReason(OK), headers, vector<char>());
     }
 }
 
@@ -141,7 +129,7 @@ std::string Response::__statusCodeToReason(int code) {
 
 std::string Response::__urlToPath(const std::string &url) {
     // TODO 改成可以设置的路径
-    string base = "./www";
+    string base = __workDir;
 
     if(url == "/"){
         return base.append("/index.html");

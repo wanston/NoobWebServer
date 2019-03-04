@@ -24,7 +24,7 @@ int main() {
     int port = 8080;
     unsigned int threads = 5;
     int timeout = 5;
-    Server s(port, threads, timeout);
+    Server s(port, threads, timeout, "./www");
     s.run();
     return 0;
 }

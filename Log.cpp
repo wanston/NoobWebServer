@@ -4,6 +4,10 @@
 
 #include "Log.h"
 #include <cstring>
+#include <iomanip>
+
+
+Log logger("/home/tong/Project/开发/NoobWebServer/test/log.txt", 1);
 
 
 Log::Log(const string& filePath, int flushInterval)
@@ -27,16 +31,21 @@ Log::~Log() {
     // join
     running = false;
     logThread.join();
-    if(fout != &cout)
+    if(fout != &cout){
         delete fout;
+    }
 }
 
 
 void Log::logThreadFn() {
-    while(running){
+    while(true){
         mutex m;
         unique_lock<mutex> condLock(m);
         condVar.wait_for(condLock, flushInterval);
+
+        if(!running){
+            break;
+        }
 
         if(buffer.ready()){
             while(buffer.ready()){
@@ -55,6 +64,18 @@ void Log::logThreadFn() {
             string str = buffer.pop();
             *fout << str;
         }
+
+        fout->flush();
+    }
+
+    while(buffer.ready()){
+        string str = buffer.pop();
+        *fout << str;
+    }
+    if(!buffer.empty()){
+        buffer.makeReady();
+        string str = buffer.pop();
+        *fout << str;
     }
 }
 
@@ -161,4 +182,17 @@ string Block::pop() {
     string ret(buf, buf+cur);
     cur = 0;
     return ret;
+}
+
+
+std::string curTime(){
+    time_t t;
+    struct tm p;
+    time(&t);
+    localtime_r(&t, &p); //取得当地具体时间
+    ostringstream ss;
+    ss << (1900 + p.tm_year) << "年" << p.tm_mon << "月" << p.tm_mday << "日" << setfill('0') << setw(2) << p.tm_hour
+                                                                        << ":" << setfill('0') << setw(2) << p.tm_min
+                                                                        << ":" << setfill('0') << setw(2) <<  p.tm_sec << ": ";
+    return ss.str();
 }

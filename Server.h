@@ -9,12 +9,13 @@
 
 class Server {
 public:
-    Server(int port, unsigned int threads, int timeout); //timeout 指定长连接的超时时间
+    Server(int port, unsigned int threads, int timeout, std::string workDir); //timeout 指定长连接的超时时间
     void run();
 private:
     int __port;
     int __listenFd;
     bool __running;
+    std::string __workDir;
     Reactor __reactor;
 
     int __makeListenFd() const;
