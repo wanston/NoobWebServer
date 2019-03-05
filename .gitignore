@@ -2,3 +2,4 @@ cmake-build-debug
 .idea
 parser
 www
+test/log.txt

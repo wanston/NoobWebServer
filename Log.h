@@ -47,7 +47,7 @@ private:
     Block *back;
     size_t blockSize;
 public:
-    explicit LogBuffer(size_t sz = 1024);
+    explicit LogBuffer(size_t sz = 256);
     ~LogBuffer();
     void push(const string &str);
     /**
@@ -97,11 +97,36 @@ Log& Log::operator<<(T obj) {
     return *this;
 };
 
-// 不能用静态成员来实现单例模式，因为会多处包含静态成员的定义
-std::string curTime();
 
 extern Log logger;
 
-#define LOG logger << curTime()
+class Logging{
+public:
+    Logging(){}
+    ~Logging(){
+//        cout << "~Logging" << endl;
+        logger << buffer;
+    }
+
+    string buffer;
+
+    template <typename T>
+    Logging&operator<<(T obj){
+        ostringstream ss;
+        ss << obj;
+        buffer.append(ss.str());
+        return *this;
+    }
+};
+
+
+
+
+// 不能用静态成员来实现单例模式，因为会多处包含静态成员的定义
+std::string curTime();
+
+//#define LOG logger << curTime()
+
+#define LOG (Logging() << curTime())
 
 #endif //NOOBHTTPPARSER_LOG_H

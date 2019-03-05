@@ -5,6 +5,7 @@
 #include "Log.h"
 #include <cstring>
 #include <iomanip>
+#include <unistd.h>
 
 
 Log logger("/home/tong/Project/开发/NoobWebServer/test/log.txt", 1);
@@ -14,6 +15,7 @@ Log::Log(const string& filePath, int flushInterval)
 : filePath(filePath), flushInterval(chrono::duration<int>(flushInterval)), running(true), fout(nullptr) {
     // fout
     if(!filePath.empty()){
+//        fout = &cout;
        fout = new ofstream(filePath);
        if(!(*fout)){
            throw runtime_error("Log file open error!");

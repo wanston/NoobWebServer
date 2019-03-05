@@ -70,7 +70,7 @@ void Reactor::addChannel(int fd) {
     socklen_t addr_size = sizeof(struct sockaddr_in);
     int res = getpeername(fd, (struct sockaddr *)&clientAddr, &addr_size);
 
-    LOG << "Thread id: " << __threadPool[idx].get_id() << " Connected. Addr " <<  inet_ntoa(clientAddr.sin_addr) << ':' << clientAddr.sin_port << " fd " << fd << '\n';
+    LOG << "Thread id: " << __threadPool[idx].get_id() << " Connected. Thread idx " << idx <<  " Addr " <<  inet_ntoa(clientAddr.sin_addr) << ':' << clientAddr.sin_port << " fd " << fd << '\n';
 
     __eventLoopPtrs[idx]->addChannel(make_shared<HttpChannel>(fd, __timeout, __eventLoopPtrs[idx]));
 }
