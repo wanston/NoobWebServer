@@ -3,3 +3,4 @@ cmake-build-debug
 parser
 www
 test/log.txt
+test/experiment.cpp
