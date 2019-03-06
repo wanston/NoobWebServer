@@ -30,6 +30,7 @@ private:
     vector<thread> __threadPool;
     vector<shared_ptr<EventLoop>> __eventLoopPtrs;
     int __timeout;
+    int __next;
 };
 
 

@@ -28,12 +28,9 @@ public:
     bool ready;
 
     explicit Block(size_t size);
-
     ~Block();
-
     size_t push(const char* src, size_t sz);
     string pop();
-
     bool empty();
 };
 
@@ -55,19 +52,63 @@ public:
      * 返回值：pop出的数据的大小，0表示没有满足条件的block
      * **/
     string pop(); // 返回pop的字节数, 0表示pop失败
-
     void makeReady();
-
-    bool ready(); //TODO ready
+    bool ready();
     bool empty();
-
     Block *getBlockAfterBack(); // 获得队尾部的空block，此时block已经加入队列，切为空。
 };
 
 
 class Log {
+public:
+    static Log* getInstance(){
+        if(!__instance){
+            __singletonLock.lock();
+            if(!__instance){
+                __instance = new Log(5);
+            }
+            __singletonLock.unlock();
+        }
+        return __instance;
+    };
+
+    template <typename T>
+    Log& operator <<(T obj){
+        ostringstream ss;
+        ss << obj;
+        if(!ss.str().empty()){
+            bufLockMtx.lock();
+            buffer.push(ss.str());
+            bufLockMtx.unlock();
+            if(buffer.ready())
+                condVar.notify_all();
+        }
+        return *this;
+    };
+
+    static void setLogFile(const string &s){
+        if(__filePath.empty()){
+            __filePath = s;
+        }
+    };
+
 private:
-    string filePath;
+    struct GC{
+        ~GC(){
+            if(__instance){
+                delete __instance;
+                __instance = nullptr;
+            }
+        }
+    };
+
+    static Log *__instance;
+    static mutex __singletonLock;
+    static string __filePath;
+    static GC __gc;
+
+    explicit Log(int flushInterval);
+    ~Log();
     ostream *fout;
     LogBuffer buffer;
     mutex bufLockMtx;
@@ -76,57 +117,41 @@ private:
     chrono::duration<int> flushInterval;
     void logThreadFn();
     thread logThread;
-public:
-    explicit Log(const string& filePath = "", int flushInterval = 1);
-    ~Log();
-    template <typename T>
-    Log& operator <<(T obj);
-};
 
-template <typename T>
-Log& Log::operator<<(T obj) {
-    ostringstream ss;
-    ss << obj;
-    if(!ss.str().empty()){
-        bufLockMtx.lock();
-        buffer.push(ss.str());
-        bufLockMtx.unlock();
-        if(buffer.ready())
-            condVar.notify_all();
-    }
-    return *this;
 };
 
 
-extern Log logger;
-
-class Logging{
+class LogWrap{
 public:
-    Logging(){}
-    ~Logging(){
-//        cout << "~Logging" << endl;
-        logger << buffer;
+    LogWrap():  __buffer(__curDate()), __dateSize(__buffer.size()) {
+    };
+
+    ~LogWrap(){
+        if(__buffer.size() > __dateSize){
+            *Log::getInstance() << __buffer;
+        }
     }
 
-    string buffer;
-
     template <typename T>
-    Logging&operator<<(T obj){
+    LogWrap& operator<<(const T &obj){
         ostringstream ss;
         ss << obj;
-        buffer.append(ss.str());
+        __buffer.append(ss.str());
         return *this;
     }
+
+    void setLogFile(const string &s){
+        Log::setLogFile(s);
+    };
+
+private:
+    string __buffer;
+    size_t __dateSize;
+    string __curDate();
 };
 
 
-
-
-// 不能用静态成员来实现单例模式，因为会多处包含静态成员的定义
-std::string curTime();
-
-//#define LOG logger << curTime()
-
-#define LOG (Logging() << curTime())
+#define LOG LogWrap()
+//#define LOG cout
 
 #endif //NOOBHTTPPARSER_LOG_H

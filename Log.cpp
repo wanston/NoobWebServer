@@ -8,15 +8,17 @@
 #include <unistd.h>
 
 
-Log logger("/home/tong/Project/开发/NoobWebServer/test/log.txt", 1);
+Log* Log::__instance = nullptr;
+mutex Log::__singletonLock;
+string Log::__filePath;
+Log::GC Log::__gc;
 
 
-Log::Log(const string& filePath, int flushInterval)
-: filePath(filePath), flushInterval(chrono::duration<int>(flushInterval)), running(true), fout(nullptr) {
+Log::Log(int flushInterval)
+: flushInterval(chrono::duration<int>(flushInterval)), running(true), fout(nullptr) {
     // fout
-    if(!filePath.empty()){
-//        fout = &cout;
-       fout = new ofstream(filePath);
+    if(!__filePath.empty()){
+       fout = new ofstream(__filePath);
        if(!(*fout)){
            throw runtime_error("Log file open error!");
        }
@@ -186,8 +188,7 @@ string Block::pop() {
     return ret;
 }
 
-
-std::string curTime(){
+string LogWrap::__curDate() {
     time_t t;
     struct tm p;
     time(&t);

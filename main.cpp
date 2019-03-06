@@ -11,19 +11,11 @@
 
 using namespace std;
 
-void testLog(){
-
-    Log log("log.log");
-    log << "abcd" << '\n';
-    log << string("test sucess") << '\n';
-    log << "end" << '\n';
-}
-
-
 int main() {
     int port = 8080;
     unsigned int threads = 5;
     int timeout = 5;
+    LOG.setLogFile("/home/tong/Project/开发/NoobWebServer/test/log.txt");
     Server s(port, threads, timeout, "./www");
     s.run();
     return 0;

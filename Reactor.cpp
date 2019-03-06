@@ -12,7 +12,8 @@
 
 Reactor::Reactor(unsigned int threads, int timeout):
 __threadsNum(threads),
-__timeout(timeout)
+__timeout(timeout),
+__next(0)
 {
     if(__threadsNum == 0){
         LOG << "Reactor threads num is 0.\n";
@@ -42,16 +43,6 @@ Reactor::~Reactor() {
 
 
 void Reactor::addChannel(int fd) {
-    unsigned int minLoad = __eventLoopPtrs[0]->getLoad();
-    int idx = 0;
-
-    for(int i=1; i<__threadsNum; i++){
-        unsigned int l = __eventLoopPtrs[i]->getLoad();
-        if(l < minLoad){
-            idx = i;
-            minLoad = l;
-        }
-    }
     // 设为非阻塞
     int flag = fcntl(fd, F_GETFL, 0);
     if(flag == -1){
@@ -69,6 +60,20 @@ void Reactor::addChannel(int fd) {
     struct sockaddr_in clientAddr;
     socklen_t addr_size = sizeof(struct sockaddr_in);
     int res = getpeername(fd, (struct sockaddr *)&clientAddr, &addr_size);
+
+    int idx = __next;
+    __next = (__next + 1) % __threadsNum;
+
+//    unsigned int minLoad = __eventLoopPtrs[0]->getLoad();
+//    int idx = 0;
+
+//    for(int i=1; i<__threadsNum; i++){
+//        unsigned int l = __eventLoopPtrs[i]->getLoad();
+//        if(l < minLoad){
+//            idx = i;
+//            minLoad = l;
+//        }
+//    }
 
     LOG << "Thread id: " << __threadPool[idx].get_id() << " Connected. Thread idx " << idx <<  " Addr " <<  inet_ntoa(clientAddr.sin_addr) << ':' << clientAddr.sin_port << " fd " << fd << '\n';
 
