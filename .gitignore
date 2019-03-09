@@ -4,3 +4,6 @@ parser
 www
 test/log.txt
 test/experiment.cpp
+design.txt
+parser.txt
+log.txt
