@@ -10,6 +10,7 @@
 #include <sys/eventfd.h>
 
 EventLoop::EventLoop():
+__waiting(true),
 __quit(false),
 __channelsCount(0)
 {
@@ -165,7 +166,7 @@ void EventLoop::__realAddChannel(ChannelPtr channel) {
         return;
     }
     // epoll
-    struct epoll_event event;
+    struct epoll_event event = {};
     event.data.fd = fd;
     event.events = channel->getEvent();//EPOLLIN | EPOLLET;TODO 检查触发
     if(epoll_ctl(__epollFd, EPOLL_CTL_ADD, fd, &event) < 0) {

@@ -12,7 +12,7 @@
 #include "Log.h"
 
 
-Server::Server(int port, unsigned int threads, int timeout, std::string workDir) : __port(port), __listenFd(-1), __reactor(threads, timeout), __workDir(workDir) {
+Server::Server(int port, unsigned int threads, int timeout, std::string workDir) : __port(port), __listenFd(-1), __running(true), __reactor(threads, timeout), __workDir(workDir) {
     // 检查port值，取正确区间范围
     if (__port < 0 || __port > 65535){
         LOG << "Invalid port!\n";
