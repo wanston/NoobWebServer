@@ -10,7 +10,7 @@ $ ./WebServer [-n threads-number] [-p port] [-t keep-alive-timeout] [-l log_file
 * 采用多线程+事件循环（epoll）的设计。
 * 采用优先队列实现定时器，及时关闭超时连接。 
 * 实现了简单的异步日志。
-* 实现了基于有限状态机的http parser。parser
+* 实现了基于有限状态机的http parser。
 * 支持长连接。
 * 支持chunked encoding request。
 
